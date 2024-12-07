@@ -1,5 +1,33 @@
 #include <KEUL/Utility.h>
 
+
+class Page
+{
+public:
+
+    Page() = default;
+
+    void addPredecessor(int p)
+    {
+        m_predecessors.emplace(p);
+    }
+
+    void addSuccessor(int s)
+    {
+        m_successors.emplace(s);
+    }
+
+    bool isPredecessor(int n) const { return m_predecessors.contains(n); }
+    bool isSuccessor(int n) const { return m_successors.contains(n); }
+    
+
+private:
+
+    std::set<int> m_predecessors;
+    std::set<int> m_successors;
+};
+
+
 int main()
 {
     constexpr bool test_input = false;
@@ -32,140 +60,56 @@ int main()
         queues.push_back(vec);
     }
 
-    std::set<int> present_numbers;
-    std::list<int> order;
 
-    ke::Random rnd;
+    std::map<int, Page> dependencies;
 
-    size_t changes_count = 1; // not 0 value
-    while (changes_count != 0)
+    for (const auto& [first, second] : rules)
     {
-        changes_count = 0;
-
-        for (const auto &[first, second] : rules)
-        {
-            bool first_in = present_numbers.contains(first);
-            bool second_in = present_numbers.contains(second);
-
-            if (!first_in && !second_in)
-            {
-                present_numbers.emplace(second);
-                present_numbers.emplace(second);
-
-                order.push_back(first);
-                order.push_back(second);
-
-                changes_count += 2;
-            }
-            else if (first_in && !second_in)
-            {
-                present_numbers.emplace(second);
-
-                for (auto itr = order.begin(); itr != order.end(); ++itr)
-                {
-                    if ((*itr) == first)
-                    {
-                        ++itr;
-                        if (itr == order.end())
-                            order.emplace_back(second);
-                        else
-                            order.emplace(itr, second);
-
-                        changes_count++;
-                        break;
-                    }
-                }
-            }
-            else if (!first_in && second_in)
-            {
-                present_numbers.emplace(first);
-
-                for (auto itr = order.begin(); itr != order.end(); ++itr)
-                {
-                    if ((*itr) == second)
-                    {
-                        order.emplace(itr, first);
-                        changes_count++;
-                        break;
-                    }
-                }
-            }
-            else if (first_in && second_in)
-            {
-                std::list<int>::iterator first_pos = order.end();
-                size_t first_index = 0;
-                std::list<int>::iterator second_pos = order.end();
-                size_t second_index = 0;
-
-                for (auto itr = order.begin(); itr != order.end(); ++itr, first_index++)
-                {
-                    if ((*itr) == first)
-                    {
-                        first_pos = itr;
-                        break;
-                    }
-                }
-                for (auto itr = order.begin(); itr != order.end(); ++itr, second_index++)
-                {
-                    if ((*itr) == second)
-                    {
-                        second_pos = itr;
-                        break;
-                    }
-                }
-
-                KE_ASSERT(first_pos != order.end() && second_pos != order.end());
-
-                if (first_index > second_index)
-                {
-                    order.erase(first_pos);
-                    order.emplace(second_pos, first);
-                    changes_count++;
-                }
-            }
-        }
-
-        std::println("Changes count = {}", changes_count);
+        dependencies[first].addSuccessor(second);
+        dependencies[second].addPredecessor(first);
     }
 
-    order.unique();
 
-    KE_LOGDEBUG("{}", queues.size());
 
     uint32_t sum = 0;
-    for (const auto &qvec : queues)
+    for (const auto& queue : queues)
     {
-        bool status = true;
-
-        auto oitr = order.begin();
-
-        for (const auto i : qvec)
+        if (queue == std::vector<int>{75, 97, 47, 61, 53})
         {
-            if (status)
+            std::println("break");
+        }
+
+        bool status = true;
+        for (int i = 0; i < queue.size(); i++)
+        {
+            // predecessor check
+            for (int j = 0; j < i; j++)
             {
-                while (*oitr != i)
+                if (dependencies[queue[i]].isSuccessor(queue[j]))
                 {
-                    ++oitr;
-                    if (oitr == order.end())
-                    {
-                        status = false;
-                        break;
-                    }
+                    status = false;
+                    break;
+                }
+            }
+
+            // successor check
+            for (int j = i + 1; j < queue.size(); j++)
+            {
+                if (dependencies[queue[i]].isPredecessor(queue[j]))
+                {
+                    status = false;
+                    break;
                 }
             }
         }
 
         if (status)
         {
-            KE_LOGDEBUG("{}", qvec);
-            sum += qvec[qvec.size() / 2];
+            sum += queue[queue.size() / 2];
+            //KE_LOGDEBUG("Chosed: {}", queue[queue.size() / 2]);
         }
     }
 
     std::println("{}", sum);
 
-    for (const auto &itr : order)
-    {
-        std::print("{} ", itr);
-    }
 }
